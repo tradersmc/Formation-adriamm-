@@ -290,7 +290,7 @@ Kevin Andriamm
 <section class="section section-alt" id="connexion">
 <div class="container">
 <div class="section-header">
-<h2>Espace Membre</h2>
+<h2>Connexion</h2>
 <p>Connectez-vous pour accéder à votre espace</p>
 </div>
 
@@ -304,9 +304,18 @@ Kevin Andriamm
 </form>
 <p class="login-help">Pas encore inscrit ? <a href="#inscription">S'inscrire</a> · <a onclick="resetMemberPass();return false;">Mot de passe oublié ?</a></p>
 </div>
+</div>
+</section>
 
-<!-- MEMBER SPACE (visible après login) -->
-<div class="member-shell hidden" id="memberSpace">
+<!-- ========== ESPACE MEMBRE (section indépendante, visible uniquement après connexion) ========== -->
+<section class="section" id="espaceMembre" style="display:none">
+<div class="container">
+<div class="section-header">
+<h2>Espace Membre</h2>
+<p>Bienvenue dans votre espace personnel</p>
+</div>
+
+<div class="member-shell" id="memberSpace">
 <div class="member-card">
 <h3>Bonjour <span id="mNom"></span> 👋</h3>
 <div class="status-line"><span>Statut du compte</span><span class="badge" id="mStatut"></span></div>
@@ -323,6 +332,13 @@ Kevin Andriamm
 <div class="member-card hidden" id="mSignalCard">
 <h3>Votre parcours Signaux</h3>
 <div id="mSignalContent"></div>
+</div>
+
+<!-- Support Telegram -->
+<div class="member-card">
+<h3>Besoin d'aide ?</h3>
+<p style="color:var(--gray);margin-bottom:14px">Contactez notre support directement sur Telegram.</p>
+<a class="btn btn-main btn-full" id="mSupportTelegramBtn" href="#" target="_blank" rel="noopener">💬 Contacter le support Telegram</a>
 </div>
 
 <div class="member-card">
@@ -478,6 +494,10 @@ Kevin Andriamm
 <div class="form-group">
 <label>Lien Telegram Signaux (affiché seulement aux membres Signal validés)</label>
 <input type="text" id="setTelegram" value="https://t.me/votre_groupe">
+</div>
+<div class="form-group">
+<label>Lien Telegram Support (affiché à TOUS les membres dans leur Espace Membre)</label>
+<input type="text" id="setSupportTelegram" placeholder="https://t.me/votre_support">
 </div>
 <div class="form-group">
 <label>Message d'accueil Partenaire (affiché au membre à côté de son lien partenaire)</label>
@@ -721,6 +741,9 @@ document.getElementById('formFormation').addEventListener('submit', async functi
     showMsg('msgFormation', "Inscription envoyée ! Votre accès sera activé après vérification du paiement.", true);
     this.reset(); selectedFile = null;
     document.getElementById('dropFormation').textContent = "📎 Cliquez pour joindre une capture";
+    setTimeout(() => {
+      document.getElementById('espaceMembre').scrollIntoView({behavior:'smooth', block:'start'});
+    }, 600);
   } catch(err) {
     showMsg('msgFormation', "Erreur : " + friendlyError(err));
   } finally {
@@ -791,8 +814,8 @@ function memberLogout() { signOut(auth); }
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if (!user) {
-    document.getElementById('loginCard').classList.remove('hidden');
-    document.getElementById('memberSpace').classList.add('hidden');
+    document.getElementById('connexion').style.display = 'block';
+    document.getElementById('espaceMembre').style.display = 'none';
     return;
   }
   if (isAdminSession) return; // admin login handled separately
@@ -804,8 +827,8 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function renderMemberSpace() {
-  document.getElementById('loginCard').classList.add('hidden');
-  document.getElementById('memberSpace').classList.remove('hidden');
+  document.getElementById('connexion').style.display = 'none';
+  document.getElementById('espaceMembre').style.display = 'block';
   const m = currentMemberData;
   document.getElementById('mNom').textContent = m.nom;
   document.getElementById('mStatut').textContent = m.statut;
@@ -815,6 +838,15 @@ async function renderMemberSpace() {
 
   document.getElementById('mFormationCard').classList.toggle('hidden', m.type !== 'formation');
   document.getElementById('mSignalCard').classList.toggle('hidden', m.type !== 'signal');
+
+  const settingsForSupport = await getSettings();
+  const supportBtn = document.getElementById('mSupportTelegramBtn');
+  if (settingsForSupport.supportTelegramLink) {
+    supportBtn.href = settingsForSupport.supportTelegramLink;
+    supportBtn.style.display = '';
+  } else {
+    supportBtn.style.display = 'none';
+  }
 
   if (m.type === 'formation') {
     const s = await getSettings();
@@ -1151,6 +1183,7 @@ async function loadSettingsForm() {
     const s = await getSettings();
     document.getElementById('setPriceFormation').value = s.priceFormation || 150000;
     document.getElementById('setTelegram').value = s.telegramLink || '';
+    document.getElementById('setSupportTelegram').value = s.supportTelegramLink || '';
     document.getElementById('setEmail').value = s.email || '';
     document.getElementById('setHeroText').value = s.heroText || '';
     document.getElementById('setPartnerMsg').value = s.partnerWelcomeMessage || '';
@@ -1282,6 +1315,7 @@ document.getElementById('formSettings').addEventListener('submit', async functio
       priceFormation: (isNaN(priceVal) || priceVal < 0) ? 150000 : priceVal,
       mvolaNumbers,
       telegramLink: document.getElementById('setTelegram').value.trim(),
+      supportTelegramLink: document.getElementById('setSupportTelegram').value.trim(),
       partnerWelcomeMessage: document.getElementById('setPartnerMsg').value.trim(),
       email: document.getElementById('setEmail').value.trim(),
       heroText: document.getElementById('setHeroText').value.trim(),
