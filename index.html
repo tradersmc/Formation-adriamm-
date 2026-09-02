@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Kevin Andriamm | Trading Forex</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -232,7 +235,9 @@ Kevin Andriamm
 </div>
 </section>
 
-<section class="section" id="inscription">
+<div id="authLoading" style="text-align:center;padding:60px 20px;color:var(--gray)">Chargement de votre espace...</div>
+
+<section class="section" id="inscription" style="display:none">
 <div class="container">
 <div class="section-header">
 <h2>Inscription</h2>
@@ -287,7 +292,7 @@ Kevin Andriamm
 </div>
 </section>
 
-<section class="section section-alt" id="connexion">
+<section class="section section-alt" id="connexion" style="display:none">
 <div class="container">
 <div class="section-header">
 <h2>Connexion</h2>
@@ -741,9 +746,14 @@ document.getElementById('formFormation').addEventListener('submit', async functi
     showMsg('msgFormation', "Inscription envoyée ! Votre accès sera activé après vérification du paiement.", true);
     this.reset(); selectedFile = null;
     document.getElementById('dropFormation').textContent = "📎 Cliquez pour joindre une capture";
-    setTimeout(() => {
-      document.getElementById('espaceMembre').scrollIntoView({behavior:'smooth', block:'start'});
-    }, 600);
+    (function waitAndScroll(triesLeft) {
+      const el = document.getElementById('espaceMembre');
+      if (el && el.style.display === 'block') {
+        el.scrollIntoView({behavior:'smooth', block:'start'});
+      } else if (triesLeft > 0) {
+        setTimeout(() => waitAndScroll(triesLeft - 1), 300);
+      }
+    })(15);
   } catch(err) {
     showMsg('msgFormation', "Erreur : " + friendlyError(err));
   } finally {
@@ -771,6 +781,14 @@ document.getElementById('formSignal').addEventListener('submit', async function(
     });
     showMsg('msgSignal', "Inscription reçue ! Connectez-vous à votre espace membre pour suivre l'attribution de votre broker.", true);
     this.reset();
+    (function waitAndScroll(triesLeft) {
+      const el = document.getElementById('espaceMembre');
+      if (el && el.style.display === 'block') {
+        el.scrollIntoView({behavior:'smooth', block:'start'});
+      } else if (triesLeft > 0) {
+        setTimeout(() => waitAndScroll(triesLeft - 1), 300);
+      }
+    })(15);
   } catch(err) {
     showMsg('msgSignal', "Erreur : " + friendlyError(err));
   } finally {
@@ -813,18 +831,42 @@ function memberLogout() { signOut(auth); }
 /* ---------- AUTH STATE ---------- */
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
+  const loader = document.getElementById('authLoading');
   if (!user) {
+    if (loader) loader.style.display = 'none';
     document.getElementById('inscription').style.display = 'block';
     document.getElementById('connexion').style.display = 'block';
     document.getElementById('espaceMembre').style.display = 'none';
     return;
   }
-  if (isAdminSession) return; // admin login handled separately
-  if (user.email === ADMIN_EMAIL) return; // avoid rendering member space for admin
-  const snap = await getDoc(doc(db, "members", user.uid));
-  if (!snap.exists()) return;
-  currentMemberData = snap.data();
-  renderMemberSpace();
+  if (isAdminSession) { if (loader) loader.style.display = 'none'; return; } // admin login handled separately
+  if (user.email === ADMIN_EMAIL) { if (loader) loader.style.display = 'none'; return; } // avoid rendering member space for admin
+
+  try {
+    let snap = await getDoc(doc(db, "members", user.uid));
+    // Juste après une inscription, le document Firestore peut prendre un instant à apparaître : on réessaie brièvement.
+    let attempts = 0;
+    while (!snap.exists() && attempts < 5) {
+      await new Promise(r => setTimeout(r, 400));
+      snap = await getDoc(doc(db, "members", user.uid));
+      attempts++;
+    }
+    if (loader) loader.style.display = 'none';
+    if (!snap.exists()) {
+      document.getElementById('inscription').style.display = 'block';
+      document.getElementById('connexion').style.display = 'block';
+      document.getElementById('espaceMembre').style.display = 'none';
+      return;
+    }
+    currentMemberData = snap.data();
+    renderMemberSpace();
+  } catch (err) {
+    console.error(err);
+    if (loader) loader.style.display = 'none';
+    document.getElementById('inscription').style.display = 'block';
+    document.getElementById('connexion').style.display = 'block';
+    document.getElementById('espaceMembre').style.display = 'none';
+  }
 });
 
 async function renderMemberSpace() {
