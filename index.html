@@ -814,6 +814,7 @@ function memberLogout() { signOut(auth); }
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if (!user) {
+    document.getElementById('inscription').style.display = 'block';
     document.getElementById('connexion').style.display = 'block';
     document.getElementById('espaceMembre').style.display = 'none';
     return;
@@ -827,6 +828,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function renderMemberSpace() {
+  document.getElementById('inscription').style.display = 'none';
   document.getElementById('connexion').style.display = 'none';
   document.getElementById('espaceMembre').style.display = 'block';
   const m = currentMemberData;
